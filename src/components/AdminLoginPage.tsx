@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
+import { apiFetch } from '../lib/api';
 
 export default function AdminLoginPage({ onSuccess }: { onSuccess?: () => void }) {
   const [email, setEmail] = useState('');
@@ -11,16 +12,11 @@ export default function AdminLoginPage({ onSuccess }: { onSuccess?: () => void }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/login`, {
+      const data = await apiFetch('login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Login failed');
-      }
-      const data = await res.json();
       if (data?.token) {
         localStorage.setItem('api_token', data.token);
       }
