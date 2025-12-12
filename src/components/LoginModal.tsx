@@ -12,13 +12,11 @@ export function LoginModal({ open, onClose, onLogin }: { open: boolean; onClose:
   const submit = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/login`, {
+      const data = await apiFetch('login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error('Login failed');
-      const data = await res.json();
       localStorage.setItem('api_token', data.token);
       onLogin();
       onClose();

@@ -60,10 +60,7 @@ export function Dashboard({ onBackToSite }: DashboardProps) {
       setAuthChecked(true);
       return;
     }
-    fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.ok ? r.json() : Promise.reject())
+    apiFetchAuth('me', token)
       .then((data) => setUserName(data.name || 'Admin'))
       .catch(() => setUserName(null))
       .finally(() => setAuthChecked(true));
@@ -220,8 +217,7 @@ export function Dashboard({ onBackToSite }: DashboardProps) {
         onLogin={() => {
           const token = localStorage.getItem('api_token');
           if (token) {
-            fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/me`, { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.ok ? r.json() : Promise.reject())
+            apiFetchAuth('me', token)
               .then(data => setUserName(data.name || 'Admin'))
               .catch(() => setUserName(null));
           }
