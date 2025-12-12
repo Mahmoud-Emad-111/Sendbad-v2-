@@ -1,56 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Button } from './Button';
+import { apiFetch, API_BASE } from '../lib/api';
 
 interface GalleryItem {
   id: number;
   title: string;
-  before: string;
-  after: string;
-  style: string;
-  material: string;
-  area: string;
+  text?: string;
+  image?: string;
+  style?: string;
+  material?: string;
+  area?: string;
+  category?: { id: number; name: string } | null;
 }
 
-const galleryItems: GalleryItem[] = [
-  {
-    id: 1,
-    title: 'مطبخ عصري فاخر',
-    before: 'https://images.unsplash.com/photo-1593068658336-4588efd97854?w=800',
-    after: 'https://images.unsplash.com/photo-1610177534644-34d881503b83?w=800',
-    style: 'عصري',
-    material: 'خشب بريميوم',
-    area: '15 متر مربع',
-  },
-  {
-    id: 2,
-    title: 'مطبخ كلاسيكي أنيق',
-    before: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800',
-    after: 'https://images.unsplash.com/photo-1686023858216-4f54c853acf2?w=800',
-    style: 'كلاسيكي',
-    material: 'خشب طبيعي',
-    area: '18 متر مربع',
-  },
-  {
-    id: 3,
-    title: 'مطبخ بسيط معاصر',
-    before: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?w=800',
-    after: 'https://images.unsplash.com/photo-1714860534425-7ce04e013dec?w=800',
-    style: 'بسيط',
-    material: 'MDF عالي الجودة',
-    area: '12 متر مربع',
-  },
-  {
-    id: 4,
-    title: 'مطبخ داكن فخم',
-    before: 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=800',
-    after: 'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800',
-    style: 'داكن',
-    material: 'خشب ماهوجني',
-    area: '20 متر مربع',
-  },
-];
+const galleryItemsDefault: GalleryItem[] = [];
 
 interface GalleryProps {
   onRequestSimilar?: (item: GalleryItem) => void;
@@ -59,24 +24,156 @@ interface GalleryProps {
 export function Gallery({ onRequestSimilar }: GalleryProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [showBefore, setShowBefore] = useState(false);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<number | 'all'>('all');
+  const [items, setItems] = useState<GalleryItem[]>(galleryItemsDefault);
+  const [categories, setCategories] = useState<Array<{id: number|string, name: string}>>([]);
+  console.log('[Gallery] render with items:', items);
+  useEffect(() => {
+    let mounted = true;
+    
+    const fetchData = async () => {
+      console.log('[Gallery] start fetching products/categories');
+      try {
+        const p = await apiFetch('products');
+        const c = await apiFetch('categories');
+        console.log('[Gallery] fetched products (raw):', p);
+        console.log('[Gallery] fetched categories (raw):', c);
+        const products = (p && (p.data ?? p)) || [];
+        const cats = (c && (c.data ?? c)) || [];
+        if (!mounted) return;
+        setItems(products.map((pr: any) => ({
+          id: pr.id,
+          title: pr.title,
+          image: pr.image,
+          text: pr.text,
+          material: pr.material || '',
+          area: pr.area || '',
+          category: pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null),
+        })));
+        const normalizedCats = Array.isArray(cats) ? cats.map((x: any, i: number) => {
+          if (!x) return { id: i, name: '' };
+          if (typeof x === 'string') return { id: x, name: x };
+          return { id: x.id ?? i, name: x.name ?? x.title ?? '' };
+        }) : [];
+        // fallback: if no categories returned from API, derive categories from products
+        let finalCats = normalizedCats;
+        if (finalCats.length === 0) {
+          const fromProducts: Record<string, { id: number|string, name: string }> = {};
+          (products || []).forEach((pr: any) => {
+            const cat = pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null);
+            if (cat) fromProducts[String(cat.id)] = cat;
+          });
+          finalCats = Object.values(fromProducts);
+        }
+        setCategories([{ id: 'all', name: 'الكل' }, ...finalCats]);
+      } catch (err:any) {
+        console.error('[Gallery] fetch error:', err);
+        // still try to populate from partial results if possible
+        try {
+          // attempt to fetch products only
+          const p2 = await apiFetch('products');
+          const products = (p2 && (p2.data ?? p2)) || [];
+          if (!mounted) return;
+          setItems(products.map((pr: any) => ({
+            id: pr.id,
+            title: pr.title,
+            image: pr.image,
+            text: pr.text,
+            material: pr.material || '',
+            area: pr.area || '',
+            category: pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null),
+          })));
+          // derive categories from products
+          const fromProducts: Record<string, { id: number|string, name: string }> = {};
+          products.forEach((pr: any) => {
+            const cat = pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null);
+            if (cat) fromProducts[String(cat.id)] = cat;
+          });
+          setCategories([{ id: 'all', name: 'الكل' }, ...Object.values(fromProducts)]);
+        } catch (e2:any) {
+          console.error('[Gallery] products fallback fetch failed:', e2);
+        }
+      }
+    };
+    fetchData();
+    const onUpdated = async () => {
+      try {
+        const p = await apiFetch('products');
+        const products = (p && (p.data ?? p)) || [];
+        if (!mounted) return;
+        setItems(products.map((pr: any) => ({
+          id: pr.id,
+          title: pr.title,
+          image: pr.image,
+          text: pr.text,
+          material: pr.material || '',
+          area: pr.area || '',
+          category: pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null),
+        })));
+      } catch (e:any) {
+        console.error('[Gallery] products:updated fetch error:', e);
+      }
+      try {
+        const c = await apiFetch('categories');
+        const cats = (c && (c.data ?? c)) || [];
+        const normalizedCats = Array.isArray(cats) ? cats.map((x: any, i: number) => {
+          if (!x) return { id: i, name: '' };
+          if (typeof x === 'string') return { id: x, name: x };
+          return { id: x.id ?? i, name: x.name ?? x.title ?? '' };
+        }) : [];
+        if (normalizedCats.length === 0) {
+          // derive from current items
+          const fromProducts: Record<string, { id: number|string, name: string }> = {};
+          (items || []).forEach((pr: any) => {
+            const cat = pr.category ? { id: pr.category.id, name: pr.category.name } : (pr.category_id ? { id: pr.category_id, name: '' } : null);
+            if (cat) fromProducts[String(cat.id)] = cat;
+          });
+          setCategories([{ id: 'all', name: 'الكل' }, ...Object.values(fromProducts)]);
+        } else {
+          setCategories([{ id: 'all', name: 'الكل' }, ...normalizedCats]);
+        }
+      } catch (e:any) {
+        console.error('[Gallery] categories:updated fetch error:', e);
+      }
+    };
+    window.addEventListener('products:updated', onUpdated);
+    window.addEventListener('categories:updated', onUpdated);
+    return () => { mounted = false; window.removeEventListener('products:updated', onUpdated); window.removeEventListener('categories:updated', onUpdated); };
+  }, []);
 
-  const filteredItems = filter === 'all' 
-    ? galleryItems 
-    : galleryItems.filter(item => item.style.toLowerCase().includes(filter.toLowerCase()));
+  const resolveImage = (img?: string) => {
+    if (!img) return undefined;
+    // already absolute
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+    // prefixed storage path
+    if (img.startsWith('/storage/') || img.startsWith('storage/')) return img.startsWith('/') ? img : '/' + img;
+    // if it's a plain path like uploads/..., prefix with backend origin + /storage/
+    try {
+      const apiBaseRoot = API_BASE.replace(/\/api\/?$/, '');
+      return apiBaseRoot.replace(/\/$/, '') + '/storage/' + img.replace(/^\//, '');
+    } catch (e) {
+      return img;
+    }
+  };
+
+  const filteredItems = filter === 'all'
+    ? items
+    : items.filter(item => (item.category && item.category.id == filter));
 
   const handleNext = () => {
     if (!selectedItem) return;
-    const currentIndex = galleryItems.findIndex(item => item.id === selectedItem.id);
-    const nextIndex = (currentIndex + 1) % galleryItems.length;
-    setSelectedItem(galleryItems[nextIndex]);
+    const currentIndex = filteredItems.findIndex(item => item.id === selectedItem.id);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % filteredItems.length;
+    setSelectedItem(filteredItems[nextIndex]);
   };
 
   const handlePrev = () => {
     if (!selectedItem) return;
-    const currentIndex = galleryItems.findIndex(item => item.id === selectedItem.id);
-    const prevIndex = (currentIndex - 1 + galleryItems.length) % galleryItems.length;
-    setSelectedItem(galleryItems[prevIndex]);
+    const currentIndex = filteredItems.findIndex(item => item.id === selectedItem.id);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + filteredItems.length) % filteredItems.length;
+    setSelectedItem(filteredItems[prevIndex]);
   };
 
   return (
@@ -91,17 +188,17 @@ export function Gallery({ onRequestSimilar }: GalleryProps) {
 
         {/* Filters */}
         <div className="flex flex-wrap justify-center gap-3 mb-8">
-          {['all', 'عصري', 'كلاسيكي', 'بسيط', 'داكن'].map((filterOption) => (
+          {(categories.length ? categories : [{id:'all',name:'الكل'}]).map((cat) => (
             <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption)}
+              key={String(cat.id)}
+              onClick={() => setFilter(cat.id)}
               className={`px-5 py-2 rounded-full transition-all ${
-                filter === filterOption
+                filter === cat.id
                   ? 'bg-[var(--color-primary)] text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {filterOption === 'all' ? 'الكل' : filterOption}
+              {cat.name}
             </button>
           ))}
         </div>
@@ -116,18 +213,18 @@ export function Gallery({ onRequestSimilar }: GalleryProps) {
             >
               <div className="aspect-[4/3] relative overflow-hidden">
                 <ImageWithFallback
-                  src={item.after}
+                  src={resolveImage(item.image)}
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="absolute bottom-4 left-4 right-4 text-white">
                     <h4 className="text-white m-0">{item.title}</h4>
-                    <p className="text-sm text-white/90 m-0">{item.area}</p>
+                    <p className="text-sm text-white/90 m-0">{item.text ? (item.text.length > 120 ? item.text.slice(0,120) + '...' : item.text) : ''}</p>
                   </div>
                 </div>
                 <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm">
-                  {item.style}
+                  {item.category?.name || ''}
                 </div>
               </div>
               <div className="p-4">
@@ -170,7 +267,7 @@ export function Gallery({ onRequestSimilar }: GalleryProps) {
             <div className="max-w-5xl w-full">
               <div className="relative aspect-[16/10] mb-4 rounded-xl overflow-hidden">
                 <ImageWithFallback
-                  src={showBefore ? selectedItem.before : selectedItem.after}
+                  src={resolveImage(selectedItem.image)}
                   alt={selectedItem.title}
                   className="w-full h-full object-cover"
                 />
@@ -184,18 +281,14 @@ export function Gallery({ onRequestSimilar }: GalleryProps) {
 
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 text-white">
                 <h3 className="text-white mb-3">{selectedItem.title}</h3>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
-                    <div className="text-sm text-white/70">النمط</div>
-                    <div className="">{selectedItem.style}</div>
+                    <div className="text-sm text-white/70">القسم</div>
+                    <div className="">{selectedItem.category?.name || ''}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-white/70">المادة</div>
-                    <div className="">{selectedItem.material}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-white/70">المساحة</div>
-                    <div className="">{selectedItem.area}</div>
+                    <div className="text-sm text-white/70">الوصف</div>
+                    <div className="">{selectedItem.text}</div>
                   </div>
                 </div>
                 <Button

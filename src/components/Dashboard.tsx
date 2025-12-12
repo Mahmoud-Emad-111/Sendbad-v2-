@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,6 +13,7 @@ import {
   Phone,
   Mail,
   CheckCircle2,
+  Star,
   Clock,
   AlertCircle,
   Search,
@@ -21,28 +22,62 @@ import {
   Eye,
   Edit,
   Trash2,
-  Download
+  Messages,
+  Download,
+  MessageCircleX
 } from 'lucide-react';
+
+import PagesAdmin from './PagesAdmin';
+import AdminSettingsComp from './AdminSettings';
+import ReviewsAdmin from './ReviewsAdmin';
+import CategoriesAdmin from './CategoriesAdmin';
+import ProductsAdmin from './ProductsAdmin';
+import ConsultationsAdmin from './ConsultationsAdmin';
+import StatsChart from './StatsChart';
 import { Button } from './Button';
+import { apiFetch, apiFetchAuth } from '../lib/api';
+import ClientsAdmin from './ClientsAdmin';
+import GalleryAdmin from './GalleryAdmin';
+import LoginModal from './LoginModal';
 
 interface DashboardProps {
   onBackToSite: () => void;
 }
 
-type ViewType = 'overview' | 'leads' | 'projects' | 'orders' | 'calendar' | 'finance' | 'settings';
+type ViewType = 'overview' | 'leads' | 'projects' | 'settings' | 'pages' | 'reviews' | 'stats' | 'home' | 'categories' | 'products';
 
 export function Dashboard({ onBackToSite }: DashboardProps) {
   const [currentView, setCurrentView] = useState<ViewType>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem('api_token');
+    if (!token) {
+      setUserName(null);
+      setAuthChecked(true);
+      return;
+    }
+    fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data) => setUserName(data.name || 'Admin'))
+      .catch(() => setUserName(null))
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  // Sidebar trimmed per request: removed pages, stats, clients, and gallery
   const menuItems = [
     { id: 'overview' as ViewType, label: 'نظرة عامة', icon: LayoutDashboard },
-    { id: 'leads' as ViewType, label: 'العملاء المحتملين', icon: Users },
-    { id: 'projects' as ViewType, label: 'المشاريع', icon: Package },
-    { id: 'orders' as ViewType, label: 'الطلبات', icon: CheckCircle2 },
-    { id: 'calendar' as ViewType, label: 'الجدول الزمني', icon: Calendar },
-    { id: 'finance' as ViewType, label: 'المالية', icon: DollarSign },
+    { id: 'home' as ViewType, label: 'الرئيسه', icon: LayoutDashboard },
+    { id: 'reviews' as ViewType, label: 'اراء العملاء', icon: CheckCircle2 },
+    { id: 'categories' as ViewType, label: 'اقسام المنتجات', icon: Package },
+    { id: 'products' as ViewType, label: 'المنتجات', icon: Package },
     { id: 'settings' as ViewType, label: 'الإعدادات', icon: Settings },
+    { id: 'consultations' as ViewType, label: 'الاستشارات', icon: Phone },
   ];
 
   return (
@@ -123,10 +158,15 @@ export function Dashboard({ onBackToSite }: DashboardProps) {
 
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white">
-                  A
-                </div>
-                <span>Admin</span>
+                {userName ? (
+                  <>
+                    <div className="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white">{(userName || 'A')[0]}</div>
+                    <span>{userName}</span>
+                    <button className="text-sm text-red-500 ml-2" onClick={() => { localStorage.removeItem('api_token'); setUserName(null); }}>خروج</button>
+                  </>
+                ) : (
+                  <button className="px-3 py-1 bg-[var(--color-primary)] text-white rounded" onClick={() => setLoginOpen(true)}>تسجيل دخول</button>
+                )}
               </div>
             </div>
           </div>
@@ -134,13 +174,36 @@ export function Dashboard({ onBackToSite }: DashboardProps) {
 
         {/* Content */}
         <main className="flex-1 p-6">
-          {currentView === 'overview' && <OverviewView />}
-          {currentView === 'leads' && <LeadsView />}
-          {currentView === 'projects' && <ProjectsView />}
-          {currentView === 'orders' && <OrdersView />}
-          {currentView === 'calendar' && <CalendarView />}
-          {currentView === 'finance' && <FinanceView />}
-          {currentView === 'settings' && <SettingsView />}
+          {!authChecked ? (
+            <div className="p-6">جارٍ التحقق...</div>
+          ) : !userName ? (
+            <div className="p-6">
+              <div className="max-w-md mx-auto text-center bg-white rounded shadow p-8">
+                <h3 className="mb-4">تحتاج لتسجيل الدخول لعرض لوحة التحكم</h3>
+                <p className="text-sm text-gray-600 mb-4">استخدم بيانات المسخدم الإداري التي تم إنشاؤها بواسطة seeder.</p>
+                <div className="flex justify-center gap-2">
+                  <Button onClick={() => setLoginOpen(true)}>تسجيل دخول</Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {currentView === 'home' && <AdminSettingsComp />}
+              {currentView === 'overview' && <OverviewView />}
+              {currentView === 'leads' && <ClientsAdmin />}
+              {currentView === 'projects' && <GalleryAdmin />}
+              {currentView === 'reviews' && <ReviewsAdmin />}
+              {currentView === 'categories' && <CategoriesAdmin />}
+              {currentView === 'products' && <ProductsAdmin />}
+              {currentView === 'pages' && <PagesAdmin />}
+              {currentView === 'consultations' && <ConsultationsAdmin />}
+              {currentView === 'stats' && <StatsChart />}
+              {currentView === 'orders' && <OrdersView />}
+              {currentView === 'calendar' && <CalendarView />}
+              {currentView === 'finance' && <FinanceView />}
+              {currentView === 'settings' && <SettingsView />}
+            </>
+          )}
         </main>
       </div>
 
@@ -151,17 +214,102 @@ export function Dashboard({ onBackToSite }: DashboardProps) {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={() => {
+          const token = localStorage.getItem('api_token');
+          if (token) {
+            fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')}/me`, { headers: { Authorization: `Bearer ${token}` } })
+              .then(r => r.ok ? r.json() : Promise.reject())
+              .then(data => setUserName(data.name || 'Admin'))
+              .catch(() => setUserName(null));
+          }
+          setLoginOpen(false);
+        }}
+      />
     </div>
   );
 }
 
 // Overview View
 function OverviewView() {
-  const stats = [
-    { label: 'عملاء محتملين جدد', value: '24', change: '+12%', icon: Users, color: 'bg-blue-500' },
-    { label: 'مشاريع نشطة', value: '18', change: '+5%', icon: Package, color: 'bg-green-500' },
-    { label: 'الإيرادات (هذا الشهر)', value: '٢٤٥,٠٠٠ ر.س', change: '+18%', icon: DollarSign, color: 'bg-purple-500' },
-    { label: 'تركيبات قادمة', value: '7', change: '', icon: Calendar, color: 'bg-orange-500' },
+  const [data, setData] = useState<{clients_count?: number, media_count?: number, admins_count?: number, users_count?: number}>({});
+  const [loading, setLoading] = useState(true);
+  const [recentClients, setRecentClients] = useState<any[]>([]);
+  const [recentMedia, setRecentMedia] = useState<any[]>([]);
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [recentConsultations, setRecentConsultations] = useState<any[]>([]);
+  const [extraCounts, setExtraCounts] = useState<{consultations?: number, categories?: number, products?: number, reviews?: number}>({});
+
+  useEffect(() => {
+    let mounted = true;
+    apiFetch('stats')
+      .then((res) => {
+        if (mounted) setData(res.data || {});
+      })
+      .catch(() => {})
+      .finally(() => { if (mounted) setLoading(false); });
+    // fetch recent lists (clients, media, consultations) and counts for extra stat cards
+    (async () => {
+      try {
+        const [clientsRes, mediaRes, categoriesRes, productsRes, reviewsRes, consultationsRes] = await Promise.all([
+          apiFetch('clients').catch(() => []),
+          apiFetch('media').catch(() => []),
+          apiFetch('categories').catch(() => []),
+          apiFetch('products').catch(() => []),
+          apiFetch('reviews').catch(() => []),
+          apiFetchAuth('consultations').catch(() => null),
+        ]);
+
+        if (!mounted) return;
+
+        const clientsArr = Array.isArray(clientsRes) ? clientsRes : (clientsRes?.data || []);
+        const mediaArr = Array.isArray(mediaRes) ? mediaRes : (mediaRes?.data || []);
+        const categoriesArr = Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes?.data || []);
+        const productsArr = Array.isArray(productsRes) ? productsRes : (productsRes?.data || []);
+
+        setRecentClients(clientsArr.slice(0, 6));
+        setRecentMedia(mediaArr.slice(0, 6));
+
+        // consultationsRes may be wrapped: { data: { total, data: [...] } }
+        let consultationsArr: any[] = [];
+        let consultationsTotal = 0;
+        if (consultationsRes) {
+          const payload = consultationsRes.data ?? consultationsRes;
+          if (Array.isArray(payload)) {
+            consultationsArr = payload;
+            consultationsTotal = payload.length;
+          } else if (payload?.data && Array.isArray(payload.data)) {
+            consultationsArr = payload.data;
+            consultationsTotal = payload.total ?? consultationsArr.length;
+          }
+        }
+        setRecentConsultations(consultationsArr.slice(0, 6));
+
+        const reviewsArr = Array.isArray(reviewsRes) ? reviewsRes : (reviewsRes?.data || []);
+
+        setExtraCounts({
+          consultations: consultationsTotal,
+          categories: Array.isArray(categoriesArr) ? categoriesArr.length : (categoriesArr?.length ?? 0),
+          products: Array.isArray(productsArr) ? productsArr.length : (productsArr?.length ?? 0),
+          reviews: Array.isArray(reviewsArr) ? reviewsArr.length : (reviewsArr?.length ?? 0),
+        });
+      } catch (e) {
+        // ignore
+      } finally {
+        if (mounted) setLoadingLists(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+    const stats = [
+    { label: 'الاقسام', value: loading ? '—' :  (extraCounts.categories ?? 0), change: '+5%', icon: Package, color: 'bg-green-500' },
+    { label: 'المنتجات', value: loading ? '—' : (extraCounts.products ?? 0), change: '+18%', icon: DollarSign, color: 'bg-purple-500' },
+    // { label: 'التقييمات', value: loadingLists ? '—' : (extraCounts.reviews ?? 0), change: '', icon: Users, color: 'bg-amber-500' },
+    { label: 'الاستشارات', value: loadingLists ? '—' : (extraCounts.consultations ?? 0), change: '',  icon: Users, color: 'bg-blue-500' },
+    { label: 'التقييمات', value: loadingLists ? '—' : (extraCounts.reviews ?? 0), change: '',  icon: Users, color: 'bg-blue-500' },
   ];
 
   return (
@@ -195,52 +343,56 @@ function OverviewView() {
         <div className="bg-white rounded-[var(--radius-card)] shadow-[var(--shadow-soft)] p-6">
           <h3>أحدث العملاء المحتملين</h3>
           <div className="space-y-4">
-            {[
-              { name: 'أحمد محمد', phone: '0501234567', source: 'موقع الويب', time: 'منذ 5 دقائق' },
-              { name: 'فاطمة علي', phone: '0509876543', source: 'واتساب', time: 'منذ 20 دقيقة' },
-              { name: 'محمد السعيد', phone: '0551234567', source: 'اتصال مباشر', time: 'منذ ساعة' },
-            ].map((lead, i) => (
-              <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center">
-                    <Users className="w-5 h-5 text-[var(--color-primary)]" />
+            {loadingLists ? (
+              <div className="text-sm text-gray-500">جارٍ التحميل...</div>
+            ) : (recentClients.length === 0 && recentConsultations.length === 0) ? (
+              <div className="text-sm text-gray-500">لا يوجد عملاء أو طلبات استشارية حتى الآن.</div>
+            ) : (
+              // merge recent clients and consultations by date
+              [...recentClients.map(c => ({...c, _type: 'client'})), ...recentConsultations.map(c => ({...c, _type: 'consultation'}))]
+                .sort((a,b) => (new Date(b.created_at || b.createdAt || Date.now()).getTime()) - (new Date(a.created_at || a.createdAt || Date.now()).getTime()))
+                .slice(0,6)
+                .map((lead, i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-[var(--color-primary)]" />
+                    </div>
+                    <div>
+                      <div className="">{lead.name || lead.full_name || lead.fullName || '—'}</div>
+                      <div className="text-sm text-gray-600">{lead.phone || lead.phone_number || '—'} • {lead._type === 'consultation' ? 'طلب استشارة' : (lead.source || lead.source_type || '—')}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="">{lead.name}</div>
-                    <div className="text-sm text-gray-600">{lead.phone} • {lead.source}</div>
-                  </div>
+                  <div className="text-xs text-gray-500">{new Date(lead.created_at || lead.createdAt || Date.now()).toLocaleString()}</div>
                 </div>
-                <div className="text-xs text-gray-500">{lead.time}</div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="bg-white rounded-[var(--radius-card)] shadow-[var(--shadow-soft)] p-6">
-          <h3>المشاريع القادمة</h3>
+          <h3>المشاريع / آخر الوسائط</h3>
           <div className="space-y-4">
-            {[
-              { project: 'مطبخ عصري - أحمد', status: 'التصميم', date: '10 ديسمبر', progress: 60 },
-              { project: 'مطبخ كلاسيكي - فاطمة', status: 'الإنتاج', date: '12 ديسمبر', progress: 85 },
-              { project: 'مطبخ بسيط - محمد', status: 'التركيب', date: '15 ديسمبر', progress: 95 },
-            ].map((project, i) => (
-              <div key={i} className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="">{project.project}</div>
-                  <div className="text-sm text-gray-600">{project.date}</div>
-                </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="text-sm text-gray-600">{project.status}</div>
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[var(--color-primary)]"
-                      style={{ width: `${project.progress}%` }}
-                    />
+            {loadingLists ? (
+              <div className="text-sm text-gray-500">جارٍ التحميل...</div>
+            ) : recentMedia.length === 0 ? (
+              <div className="text-sm text-gray-500">لا توجد وسائط حتى الآن.</div>
+            ) : (
+              recentMedia.map((m, i) => (
+                <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <img src={m.url || m.path || ''} alt={m.filename || 'media'} className="w-16 h-12 object-cover rounded" />
+                      <div>
+                        <div className="font-medium">{m.filename || `وسيط ${m.id || i + 1}`}</div>
+                        <div className="text-sm text-gray-600">{m.mime || ''}</div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-600">{new Date(m.created_at || m.createdAt || Date.now()).toLocaleDateString()}</div>
                   </div>
-                  <div className="text-sm">{project.progress}%</div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -397,12 +549,12 @@ function FinanceView() {
   );
 }
 
+import AdminSettings from './AdminSettings';
+
 function SettingsView() {
   return (
-    <div className="bg-white rounded-[var(--radius-card)] shadow-[var(--shadow-soft)] p-12 text-center">
-      <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3>الإعدادات</h3>
-      <p className="text-gray-600">إعدادات الحساب والنظام</p>
+    <div>
+      <AdminSettings />
     </div>
   );
 }

@@ -1,68 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { apiFetch } from '../lib/api';
 
 interface Review {
   id: number;
-  name: string;
-  avatar: string;
-  rating: number;
-  text: string;
-  project: string;
-  date: string;
+  author?: string;
+  avatar?: string;
+  rating?: number;
+  content?: string;
+  created_at?: string;
 }
 
-const reviews: Review[] = [
-  {
-    id: 1,
-    name: 'أحمد السالم',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    rating: 5,
-    text: 'خدمة ممتازة وجودة عالية. الفريق محترف جداً وملتزم بالمواعيد. مطبخي الجديد فاق كل توقعاتي!',
-    project: 'مطبخ عصري 15 م²',
-    date: 'منذ أسبوعين',
-  },
-  {
-    id: 2,
-    name: 'فاطمة العتيبي',
-    avatar: 'https://i.pravatar.cc/150?img=5',
-    rating: 5,
-    text: 'تعامل راقي من البداية للنهاية. التصميم 3D ساعدني كثير في اختيار التصميم المناسب.',
-    project: 'مطبخ كلاسيكي 18 م²',
-    date: 'منذ شهر',
-  },
-  {
-    id: 3,
-    name: 'محمد الغامدي',
-    avatar: 'https://i.pravatar.cc/150?img=33',
-    rating: 5,
-    text: 'أفضل قرار اتخذته! الجودة ممتازة والأسعار منافسة. أنصح بهم بشدة.',
-    project: 'مطبخ بسيط 12 م²',
-    date: 'منذ 3 أسابيع',
-  },
-  {
-    id: 4,
-    name: 'نورة الشهري',
-    avatar: 'https://i.pravatar.cc/150?img=9',
-    rating: 5,
-    text: 'الاستشارة المجانية كانت مفيدة جداً. الفريق أعطاني أفكار رائعة لتحسين المساحة.',
-    project: 'مطبخ داكن 20 م²',
-    date: 'منذ أسبوع',
-  },
-];
-
 export function Reviews() {
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const fetchReviews = async () => {
+    try {
+      const res = await apiFetch('reviews');
+      const data = res?.data ?? res;
+      setReviews(Array.isArray(data) ? data : []);
+      setCurrentIndex(0);
+    } catch (e) {
+      setReviews([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+    const onUpdated = () => fetchReviews();
+    window.addEventListener('reviews:updated', onUpdated);
+    return () => window.removeEventListener('reviews:updated', onUpdated);
+  }, []);
+
   const next = () => {
+    if (reviews.length === 0) return;
     setCurrentIndex((prev) => (prev + 1) % reviews.length);
   };
 
   const prev = () => {
+    if (reviews.length === 0) return;
     setCurrentIndex((prev) => (prev - 1 + reviews.length) % reviews.length);
   };
 
-  const currentReview = reviews[currentIndex];
+  const currentReview = reviews[currentIndex] || ({} as Review);
+  const currentAuthor = (currentReview as any).author || (currentReview as any).name || (currentReview as any).username || '';
+  const currentContent = (currentReview as any).content || (currentReview as any).text || (currentReview as any).comment || '';
+  const currentDate = (currentReview as any).created_at || (currentReview as any).date || (currentReview as any).createdAt || '';
 
   return (
     <section className="section-padding bg-[var(--color-neutral-dark)] text-white relative overflow-hidden">
@@ -92,7 +77,7 @@ export function Reviews() {
                   <Star
                     key={i}
                     className={`w-6 h-6 ${
-                      i < currentReview.rating
+                      i < (currentReview.rating || 0)
                         ? 'fill-[var(--color-accent)] text-[var(--color-accent)]'
                         : 'text-gray-500'
                     }`}
@@ -102,20 +87,20 @@ export function Reviews() {
 
               {/* Review Text */}
               <p className="text-xl md:text-2xl text-center mb-8 text-white leading-relaxed">
-                "{currentReview.text}"
+                "{currentContent}"
               </p>
 
               {/* Reviewer Info */}
               <div className="flex items-center justify-center gap-4">
                 <ImageWithFallback
-                  src={currentReview.avatar}
-                  alt={currentReview.name}
+                  src={(currentReview as any).avatar}
+                  alt={currentAuthor}
                   className="w-16 h-16 rounded-full border-2 border-[var(--color-accent)]"
                 />
                 <div className="text-right">
-                  <div className="text-white">{currentReview.name}</div>
-                  <div className="text-sm text-gray-400">{currentReview.project}</div>
-                  <div className="text-xs text-gray-500">{currentReview.date}</div>
+                  <div className="text-white">{currentAuthor}</div>
+                  <div className="text-sm text-gray-400">{(currentReview as any).project || ''}</div>
+                  <div className="text-xs text-gray-500">{currentDate ? new Date(currentDate).toLocaleDateString() : ''}</div>
                 </div>
               </div>
             </div>

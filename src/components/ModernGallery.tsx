@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ExternalLink, ChevronLeft, ChevronRight, Maximize2, Sparkles } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Button } from './Button';
+import { apiFetch, API_BASE } from '../lib/api';
 
 interface GalleryItem {
   id: number;
@@ -11,9 +12,11 @@ interface GalleryItem {
   style: string;
   material: string;
   area: string;
+  text?: string;
+  categoryId?: number | string | null;
 }
-
-const galleryItems: GalleryItem[] = [
+console.log('ModernGallery: component loaded');
+const staticGalleryItems: GalleryItem[] = [
   {
     id: 1,
     title: 'مطبخ عصري فاخر',
@@ -32,42 +35,6 @@ const galleryItems: GalleryItem[] = [
     material: 'خشب طبيعي',
     area: '18 متر مربع',
   },
-  {
-    id: 3,
-    title: 'مطبخ بسيط معاصر',
-    before: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?w=800',
-    after: 'https://images.unsplash.com/photo-1714860534425-7ce04e013dec?w=800',
-    style: 'بسيط',
-    material: 'MDF ع��لي الجودة',
-    area: '12 متر مربع',
-  },
-  {
-    id: 4,
-    title: 'مطبخ داكن فخم',
-    before: 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=800',
-    after: 'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800',
-    style: 'داكن',
-    material: 'خشب ماهوجني',
-    area: '20 متر مربع',
-  },
-  {
-    id: 5,
-    title: 'مطبخ مفتوح حديث',
-    before: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800',
-    after: 'https://images.unsplash.com/photo-1610177534644-34d881503b83?w=800',
-    style: 'عصري',
-    material: 'خشب وحجر',
-    area: '22 متر مربع',
-  },
-  {
-    id: 6,
-    title: 'مطبخ صغير ذكي',
-    before: 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=800',
-    after: 'https://images.unsplash.com/photo-1714860534425-7ce04e013dec?w=800',
-    style: 'بسيط',
-    material: 'MDF',
-    area: '8 متر مربع',
-  },
 ];
 
 interface ModernGalleryProps {
@@ -76,28 +43,90 @@ interface ModernGalleryProps {
 
 export function ModernGallery({ onRequestSimilar }: ModernGalleryProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
+  const [items, setItems] = useState<GalleryItem[]>(staticGalleryItems);
+  const [categories, setCategories] = useState<Array<{id:number|string, name:string}>>([]);
 
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<number | string | 'all'>('all');
 
   const filteredItems = filter === 'all'
-    ? galleryItems
-    : galleryItems.filter(item => item.style.toLowerCase().includes(filter.toLowerCase()));
+    ? items
+    : items.filter(item => (
+      // match by category id if available
+      (item.categoryId !== undefined && item.categoryId !== null && String(item.categoryId) === String(filter))
+      // or fallback to matching style text
+      || (item.style || '').toString().toLowerCase().includes(String(filter).toLowerCase())
+    ));
 
   const handleNext = () => {
     if (!selectedItem) return;
-    const currentIndex = galleryItems.findIndex(item => item.id === selectedItem.id);
-    const nextIndex = (currentIndex + 1) % galleryItems.length;
-    setSelectedItem(galleryItems[nextIndex]);
-
+    const currentIndex = filteredItems.findIndex(item => item.id === selectedItem.id);
+    if (currentIndex === -1 || filteredItems.length === 0) return;
+    const nextIndex = (currentIndex + 1) % filteredItems.length;
+    setSelectedItem(filteredItems[nextIndex]);
   };
 
   const handlePrev = () => {
     if (!selectedItem) return;
-    const currentIndex = galleryItems.findIndex(item => item.id === selectedItem.id);
-    const prevIndex = (currentIndex - 1 + galleryItems.length) % galleryItems.length;
-    setSelectedItem(galleryItems[prevIndex]);
-
+    const currentIndex = filteredItems.findIndex(item => item.id === selectedItem.id);
+    if (currentIndex === -1 || filteredItems.length === 0) return;
+    const prevIndex = (currentIndex - 1 + filteredItems.length) % filteredItems.length;
+    setSelectedItem(filteredItems[prevIndex]);
   };
+
+  // resolve image helper (handles absolute urls and storage paths)
+  const resolveImage = (img?: string) => {
+    if (!img) return undefined;
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+    if (img.startsWith('/storage/') || img.startsWith('storage/')) return img.startsWith('/') ? img : '/' + img;
+    try {
+      const apiBaseRoot = API_BASE.replace(/\/api\/?$/, '');
+      return apiBaseRoot.replace(/\/$/, '') + '/storage/' + img.replace(/^\//, '');
+    } catch (e) {
+      return img;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchData = async () => {
+      console.log('[ModernGallery] fetching products/categories');
+      try {
+        const p = await apiFetch('products');
+        const c = await apiFetch('categories');
+        const products = (p && (p.data ?? p)) || [];
+        const cats = (c && (c.data ?? c)) || [];
+        if (!mounted) return;
+        const mapped = products.map((pr: any) => ({
+          id: pr.id,
+          title: pr.title || pr.name || 'بدون عنوان',
+          before: resolveImage(pr.image) || undefined,
+          after: resolveImage(pr.image) || undefined,
+          style: pr.category ? pr.category.name : (pr.style || 'عام'),
+          categoryId: pr.category ? pr.category.id : (pr.category_id ?? null),
+          material: pr.material || '',
+          area: pr.area || '',
+          text: pr.text ?? pr.description ?? '',
+        }));
+        setItems(mapped.length ? mapped : staticGalleryItems);
+        const normalizedCats = Array.isArray(cats) ? cats.map((x:any,i:number)=>({ id: x.id ?? i, name: x.name ?? x.title ?? String(x) })) : [];
+        if (normalizedCats.length > 0) setCategories(normalizedCats);
+        else {
+          // derive from products
+          const by = {} as Record<string, {id:number|string,name:string}>;
+          mapped.forEach(m=>{ if (m.style) by[String(m.style)] = { id: m.style, name: m.style }; });
+          setCategories(Object.values(by));
+        }
+      } catch (err:any) {
+        console.error('[ModernGallery] fetch error', err);
+        // leave static items
+      }
+    };
+    fetchData();
+    const onUpdated = async () => { if (mounted) fetchData(); };
+    window.addEventListener('products:updated', onUpdated);
+    window.addEventListener('categories:updated', onUpdated);
+    return () => { mounted = false; window.removeEventListener('products:updated', onUpdated); window.removeEventListener('categories:updated', onUpdated); };
+  }, []);
 
   return (
     <section className="section-padding bg-white relative overflow-hidden">
@@ -122,18 +151,45 @@ export function ModernGallery({ onRequestSimilar }: ModernGalleryProps) {
 
         {/* Filters */}
         <div className="flex flex-wrap justify-center gap-3 mb-12">
-          {['all', 'عصري', 'كلاسيكي', 'بسيط', 'داكن'].map((filterOption) => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption)}
-              className={`px-6 py-3 rounded-full transition-all duration-300 font-medium ${filter === filterOption
-                  ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] text-white shadow-lg scale-105'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                }`}
-            >
-              {filterOption === 'all' ? 'الكل' : filterOption}
-            </button>
-          ))}
+          <button
+            key="all"
+            onClick={() => setFilter('all')}
+            className={`px-6 py-3 rounded-full transition-all duration-300 font-medium ${filter === 'all'
+                ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] text-white shadow-lg scale-105'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+              }`}
+          >
+            الكل
+          </button>
+
+          {categories && categories.length > 0 ? (
+            categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setFilter(cat.id)}
+                className={`px-6 py-3 rounded-full transition-all duration-300 font-medium ${String(filter) === String(cat.id)
+                    ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                  }`}
+              >
+                {cat.name}
+              </button>
+            ))
+          ) : (
+            // fallback to old static list if API categories are empty
+            ['عصري', 'كلاسيكي', 'بسيط', 'داكن'].map((filterOption) => (
+              <button
+                key={filterOption}
+                onClick={() => setFilter(filterOption)}
+                className={`px-6 py-3 rounded-full transition-all duration-300 font-medium ${filter === filterOption
+                    ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                  }`}
+              >
+                {filterOption}
+              </button>
+            ))
+          )}
         </div>
 
         {/* Gallery Grid */}
@@ -192,37 +248,39 @@ export function ModernGallery({ onRequestSimilar }: ModernGalleryProps) {
 
         {/* Lightbox Modal */}
         {selectedItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-3 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
             {/* Close Button */}
             <button
               onClick={() => setSelectedItem(null)}
-              className="absolute top-6 right-6 z-10 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 hover:rotate-90"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 sm:p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 sm:hover:rotate-90"
               aria-label="إغلاق"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             {/* Navigation Buttons */}
             <button
               onClick={handlePrev}
-              className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 p-2 sm:p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
               aria-label="السابق"
+              style={{ zIndex: '1255',backgroundColor: 'color-mix(in oklab, var(--color-white) 30%, #000000b5)' }}
             >
-              <ChevronLeft className="w-7 h-7" />
+              <ChevronLeft className="w-5 sm:w-7 h-5 sm:h-7" />
             </button>
 
             <button
               onClick={handleNext}
-              className="absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 p-2 sm:p-3 bg-white/30 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
               aria-label="التالي"
+              style={{ zIndex: '1255',backgroundColor: 'color-mix(in oklab, var(--color-white) 30%, #000000b5)' }}
             >
-              <ChevronRight className="w-7 h-7" />
+              <ChevronRight className="w-5 sm:w-7 h-5 sm:h-7" />
             </button>
 
             {/* Content */}
-            <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div className="max-w-[95vw] sm:max-w-2xl md:max-w-3xl w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar">
               {/* Image */}
-              <div className="relative aspect-[16/10] mb-4 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="relative aspect-[4/3] sm:aspect-[16/10] mb-3 sm:mb-4 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[45vh] sm:max-h-[70vh]">
                 <ImageWithFallback
                   src={selectedItem.after}
                   alt={selectedItem.title}
@@ -236,19 +294,13 @@ export function ModernGallery({ onRequestSimilar }: ModernGalleryProps) {
               <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <h3 className="text-white text-3xl mb-4">{selectedItem.title}</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-sm text-white/70 mb-1">النمط</div>
-                        <div className="font-semibold">{selectedItem.style}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-white/70 mb-1">المادة</div>
-                        <div className="font-semibold">{selectedItem.material}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-white/70 mb-1">المساحة</div>
-                        <div className="font-semibold">{selectedItem.area}</div>
+                    <h3 className="text-white text-lg sm:text-3xl mb-2 sm:mb-4">{selectedItem.title}</h3>
+                    <div>
+                      <div className="text-xs sm:text-sm text-white/70 mb-1 sm:mb-2">الوصف</div>
+                      <div className="prose prose-invert max-w-none text-white text-xs sm:text-base">
+                        {selectedItem.text && String(selectedItem.text).trim().length > 0
+                          ? selectedItem.text
+                          : 'لا يوجد وصف'}
                       </div>
                     </div>
                   </div>

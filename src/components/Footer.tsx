@@ -18,7 +18,7 @@ export function Footer() {
   return (
     <footer className="bg-[var(--color-neutral-dark)] text-white">
       {/* Newsletter */}
-      <div className="border-b border-white/10">
+      {/* <div className="border-b border-white/10">
         <div className="container py-12">
           <div className="max-w-2xl mx-auto text-center">
             <Mail className="w-12 h-12 text-[var(--color-accent)] mx-auto mb-4" />
@@ -49,10 +49,10 @@ export function Footer() {
             )}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Footer */}
-      <div className="container py-12">
+      <div className="container py-12" style={{ paddingTop: '1rem'}}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About */}
           <div>

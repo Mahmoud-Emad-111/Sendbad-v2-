@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calculator, Sparkles, ArrowRight, Check } from 'lucide-react';
 import { Button } from './Button';
+import { ConsultationForm } from './ConsultationForm';
 
 interface ModernEstimatorProps {
   onRequestConsultation?: (data: any) => void;
@@ -13,6 +14,7 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
   const [units, setUnits] = useState(8);
   const [style, setStyle] = useState('modern');
   const [estimate, setEstimate] = useState<{ min: number; max: number } | null>(null);
+  const [consultOpen, setConsultOpen] = useState(false);
 
   const calculateEstimate = () => {
     const basePricePerMeter = material === 'mdf' ? 1500 : material === 'wood' ? 2500 : 3500;
@@ -23,7 +25,8 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
     const max = Math.ceil((area * basePricePerMeter + units * unitPrice) * styleMultiplier * 1.1);
     
     setEstimate({ min, max });
-    setStep(4);
+    // Do NOT show the estimate screen — open consultation form directly
+    setConsultOpen(true);
   };
 
   const materials = [
@@ -51,10 +54,10 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
   ];
 
   const styles = [
-    { value: 'modern', label: 'عصري', icon: '🏢' },
-    { value: 'classic', label: 'كلاسيكي', icon: '🏛️' },
-    { value: 'minimal', label: 'بسيط', icon: '⚪' },
-    { value: 'dark', label: 'داكن', icon: '⚫' },
+    { value: 'modern', label: 'U Shape ', icon: '🏢' },
+    { value: 'classic', label: 'I Shape ', icon: '🏛️' },
+    { value: 'minimal', label: 'L Shape ', icon: '⚪' },
+    { value: 'dark', label: 'I Saland', icon: '⚫' },
   ];
 
   return (
@@ -86,7 +89,7 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
 
           {/* Progress Steps */}
           <div className="relative z-10 mt-8 flex items-center justify-between">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2].map((s) => (
               <div key={s} className="flex items-center flex-1">
                 <div className="flex flex-col items-center gap-2 flex-1">
                   <div
@@ -104,12 +107,10 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
                   </div>
                   <span className="text-xs text-white/80 hidden sm:block">
                     {s === 1 && 'المساحة'}
-                    {s === 2 && 'المادة'}
-                    {s === 3 && 'النمط'}
-                    {s === 4 && 'التقدير'}
+                    {s === 2 && 'النمط'}
                   </span>
                 </div>
-                {s < 4 && (
+                {s < 2 && (
                   <div className={`h-0.5 flex-1 mx-2 transition-all duration-300 ${
                     step > s ? 'bg-white' : 'bg-white/20'
                   }`} />
@@ -169,70 +170,14 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
             </div>
           )}
 
-          {/* Step 2: Material */}
+          {/* Step 2 (removed): Material - skipped, default material kept */}
+
+          {/* Step 2: Style */}
           {step === 2 && (
             <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
               <div>
                 <label className="block text-2xl mb-2">
-                  اختر نوع المادة
-                </label>
-                <p className="text-gray-600">المادة تحدد الجودة والسعر</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {materials.map((mat) => (
-                  <button
-                    key={mat.value}
-                    onClick={() => setMaterial(mat.value)}
-                    className={`relative p-6 rounded-2xl border-2 transition-all duration-300 text-right group hover:scale-105 ${
-                      material === mat.value
-                        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-lg'
-                        : 'border-gray-200 hover:border-[var(--color-primary)]/50'
-                    }`}
-                  >
-                    <div className="text-4xl mb-3">{mat.icon}</div>
-                    <div className="text-xl font-bold mb-1">{mat.label}</div>
-                    <div className="text-sm text-gray-600 mb-3">{mat.desc}</div>
-                    <div className="text-lg font-bold text-[var(--color-primary)]">{mat.price}</div>
-                    
-                    {material === mat.value && (
-                      <div className="absolute top-3 left-3 w-6 h-6 bg-[var(--color-primary)] rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  onClick={() => setStep(1)}
-                  className="flex-1"
-                >
-                  السابق
-                </Button>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={() => setStep(3)}
-                  className="flex-1"
-                >
-                  التالي
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Style */}
-          {step === 3 && (
-            <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-              <div>
-                <label className="block text-2xl mb-2">
-                  اختر نمط المطبخ
-                </label>
+                  اختيار شكل المطبخ                </label>
                 <p className="text-gray-600">النمط الذي يناسب ذوقك</p>
               </div>
 
@@ -284,7 +229,7 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
                 <Button
                   variant="ghost"
                   size="lg"
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(1)}
                   className="flex-1"
                 >
                   السابق
@@ -302,81 +247,11 @@ export function ModernEstimator({ onRequestConsultation }: ModernEstimatorProps)
             </div>
           )}
 
-          {/* Step 4: Result */}
-          {step === 4 && estimate && (
-            <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-success)]/10 text-[var(--color-success)] rounded-full mb-6">
-                  <Check className="w-5 h-5" />
-                  <span>تم حساب التقدير بنجاح!</span>
-                </div>
-              </div>
-
-              <div className="relative bg-gradient-to-br from-[var(--color-primary)]/10 via-[var(--color-accent)]/10 to-[var(--color-primary)]/5 rounded-3xl p-8 md:p-12 overflow-hidden">
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.5)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.5)_50%,rgba(255,255,255,0.5)_75%,transparent_75%)] bg-[size:20px_20px] opacity-20" />
-                
-                <div className="relative z-10 text-center">
-                  <div className="text-sm text-gray-600 mb-2">التقدير الأولي لمطبخك</div>
-                  <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] bg-clip-text text-transparent mb-2">
-                    {estimate.min.toLocaleString('ar-SA')} - {estimate.max.toLocaleString('ar-SA')}
-                  </div>
-                  <div className="text-2xl text-gray-700">ريال سعودي</div>
-                  
-                  <div className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-2xl">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <div className="text-gray-600">المساحة</div>
-                        <div className="font-bold">{area} م²</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">المادة</div>
-                        <div className="font-bold">{materials.find(m => m.value === material)?.label}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">النمط</div>
-                        <div className="font-bold">{styles.find(s => s.value === style)?.label}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">الوحدات</div>
-                        <div className="font-bold">{units} وحدة</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                <p className="text-sm text-gray-700 text-center m-0">
-                  💡 هذا تقدير تقريبي. للحصول على عرض سعر نهائي دقيق، احجز معاينة منزلية مجانية
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  onClick={() => {
-                    setStep(1);
-                    setEstimate(null);
-                  }}
-                  className="flex-1"
-                >
-                  حساب جديد
-                </Button>
-                <Button
-                  variant="accent"
-                  size="lg"
-                  onClick={() => onRequestConsultation?.({ area, material, style, units, estimate })}
-                  className="flex-1"
-                >
-                  <Sparkles className="w-5 h-5" />
-                  احجز استشارة مجانية
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Result screen removed — consultation form opens directly after step 2 */}
         </div>
       </div>
+      {/* Consultation modal */}
+      <ConsultationForm isOpen={consultOpen} onClose={() => setConsultOpen(false)} />
     </div>
   );
 }

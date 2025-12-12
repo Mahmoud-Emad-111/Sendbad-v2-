@@ -3,28 +3,28 @@ import { Shield, Wrench, Box, Award, Users } from 'lucide-react';
 const features = [
   {
     icon: Shield,
-    title: 'ضمان 10 سنوات',
-    proof: 'على جميع المنتجات',
+    title: 'خبره أكثر من 20 عاماً',
+    proof: 'في السلطنة',
   },
   {
-    icon: Wrench,
-    title: 'تركيب مجاني',
+    icon: Users,
+    title: 'أكتر من 15,0000 مشروع',
     proof: 'فريق معتمد ومحترف',
   },
   {
     icon: Box,
-    title: 'تصميم 3D مجاني',
-    proof: 'شاهد مطبخك قبل التنفيذ',
+    title: 'خامات أوربية بمعايير دولية',
+    proof: 'خامات المانية',
   },
   {
     icon: Award,
-    title: 'مواد معتمدة',
-    proof: 'أعلى معايير الجودة',
+    title: 'ضمان 10 سنوات',
+    proof: 'علي جميع المنتجات',
   },
   {
-    icon: Users,
-    title: '180+ مطبخ جاهز',
-    proof: 'عملاء راضون',
+    icon: Wrench,
+    title: 'تركي مجاني',
+    proof: 'خدمة ما بعد البيع',
   },
 ];
 

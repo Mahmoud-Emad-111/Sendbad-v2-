@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSettings } from '../lib/settings';
+import { API_BASE } from '../lib/api';
 import { Button } from './Button';
 import { Play, CheckCircle2, Sparkles, ArrowDown, Star } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -9,6 +11,43 @@ interface ModernHeroProps {
 }
 
 export function ModernHero({ onOpenConsultation, onOpenGallery }: ModernHeroProps) {
+  const settings = useSettings();
+  let heroImages: string[] = [];
+  try {
+    if (settings?.hero_images) {
+      if (Array.isArray(settings.hero_images)) heroImages = settings.hero_images;
+      else heroImages = JSON.parse(settings.hero_images || '[]');
+    }
+  } catch (e) {
+    heroImages = [];
+  }
+  if (!heroImages || heroImages.length === 0) {
+    heroImages = [
+      'https://images.unsplash.com/photo-1686023858216-4f54c853acf2?w=1400',
+      'https://images.unsplash.com/photo-1610177534644-34d881503b83?w=1400',
+      'https://images.unsplash.com/photo-1593068658336-4588efd97854?w=1400'
+    ];
+  }
+
+  // Ensure image URLs are absolute (backend returns '/storage/...' paths)
+  const apiOrigin = API_BASE.replace(/\/api\/?$/, '');
+  heroImages = heroImages.map((u) => {
+    if (!u) return u;
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    if (u.startsWith('/')) return apiOrigin + u;
+    return u;
+  });
+
+  const [currentHero, setCurrentHero] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => {
+      setCurrentHero((c) => (c + 1) % heroImages.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [paused, heroImages.length]);
   return (
     <div className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#0f1f3a] to-[#1a2942]">
       {/* Animated Background Pattern */}
@@ -44,22 +83,22 @@ export function ModernHero({ onOpenConsultation, onOpenGallery }: ModernHeroProp
             {/* Main Heading */}
             <div className="space-y-4 animate-[fadeIn_0.8s_ease-out]">
               <h1 className="text-5xl md:text-6xl lg:text-7xl leading-tight">
-                <span className="block text-white">مطبخ أحلامك</span>
+                <span className="block text-white">{settings?.hero_title_line1 || 'مطبخ أحلامك'}</span>
                 <span className="block bg-gradient-to-r from-[var(--color-accent)] via-[#f0c674] to-[var(--color-accent)] bg-clip-text text-transparent">
-                  يبدأ من هنا
+                  {settings?.hero_title_line2 || 'يبدأ من هنا'}
                 </span>
               </h1>
               <p className="text-xl text-gray-300 leading-relaxed max-w-xl">
-                تصميم وتصنيع خزائن مطابخ مخصصة بجودة عالمية. نحوّل مساحتك إلى تحفة فنية وظيفية.
+                {settings?.hero_subtitle || 'تصميم وتصنيع خزائن مطابخ مخصصة بجودة عالمية. نحوّل مساحتك إلى تحفة فنية وظيفية.'}
               </p>
             </div>
 
             {/* Features */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-[fadeIn_1s_ease-out]">
               {[
-                { icon: Sparkles, text: 'تصميم 3D مجاني' },
+                { icon: Sparkles, text: 'تصميم 3D واقعي 100%' },
                 { icon: CheckCircle2, text: 'ضمان 10 سنوات' },
-                { icon: CheckCircle2, text: 'تركيب احترافي' },
+                { icon: CheckCircle2, text: 'تركيب مجاني ومتابعة مستمرة' },
               ].map((feature, i) => {
                 const Icon = feature.icon;
                 return (
@@ -103,10 +142,10 @@ export function ModernHero({ onOpenConsultation, onOpenGallery }: ModernHeroProp
                 <span>استجابة خلال 24 ساعة</span>
               </div>
               <div className="w-1 h-1 bg-gray-600 rounded-full" />
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-[var(--color-success)]" />
                 <span>معاينة مجانية</span>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -114,38 +153,47 @@ export function ModernHero({ onOpenConsultation, onOpenGallery }: ModernHeroProp
           <div className="relative hidden lg:block animate-[fadeIn_1s_ease-out]">
             {/* Floating Card */}
             <div className="relative">
-              {/* Main Image Card */}
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-500">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1686023858216-4f54c853acf2?w=800"
-                  alt="مطبخ فاخر"
-                  className="w-full h-[600px] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                
-                {/* Floating Stats */}
-                <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
-                  <div className="grid grid-cols-3 gap-4 text-center text-white">
-                    <div>
-                      <div className="text-3xl font-bold text-[var(--color-accent)]">180+</div>
-                      <div className="text-sm text-gray-300 mt-1">مشروع منجز</div>
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-[var(--color-accent)]">10</div>
-                      <div className="text-sm text-gray-300 mt-1">سنوات ضمان</div>
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-[var(--color-accent)]">100%</div>
-                      <div className="text-sm text-gray-300 mt-1">رضا العملاء</div>
+                {/* Main Image Card - slideshow */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-500">
+                  <div
+                    className="relative w-full h-[600px]"
+                    onMouseEnter={() => setPaused(true)}
+                    onMouseLeave={() => setPaused(false)}
+                  >
+                    {heroImages.map((src, idx) => (
+                      <ImageWithFallback
+                        key={src}
+                        src={src}
+                        alt={`مطبخ ${idx + 1}`}
+                        className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${idx === currentHero ? 'opacity-100 translate-y-0 scale-100 z-10' : 'opacity-0 -translate-y-6 scale-110 z-0'}`}
+                      />
+                    ))}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+                    {/* Floating Stats */}
+                    <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
+                      <div className="grid grid-cols-3 gap-4 text-center text-white">
+                        <div>
+                          <div className="text-3xl font-bold text-[var(--color-accent)]">180+</div>
+                          <div className="text-sm text-gray-300 mt-1">مشروع منجز</div>
+                        </div>
+                        <div>
+                          <div className="text-3xl font-bold text-[var(--color-accent)]">10</div>
+                          <div className="text-sm text-gray-300 mt-1">سنوات ضمان</div>
+                        </div>
+                        <div>
+                          <div className="text-3xl font-bold text-[var(--color-accent)]">100%</div>
+                          <div className="text-sm text-gray-300 mt-1">رضا العملاء</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Decorative Elements */}
-              <div className="absolute -top-6 -right-6 w-32 h-32 bg-gradient-to-br from-[var(--color-accent)] to-[#d4a557] rounded-3xl opacity-20 blur-2xl animate-pulse" />
-              <div className="absolute -bottom-6 -left-6 w-40 h-40 bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-600)] rounded-3xl opacity-20 blur-2xl animate-pulse delay-1000" />
-            </div>
+                {/* Decorative Elements */}
+                <div className="absolute -top-6 -right-6 w-32 h-32 bg-gradient-to-br from-[var(--color-accent)] to-[#d4a557] rounded-3xl opacity-20 blur-2xl animate-pulse" />
+                <div className="absolute -bottom-6 -left-6 w-40 h-40 bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-600)] rounded-3xl opacity-20 blur-2xl animate-pulse delay-1000" />
+              </div>
           </div>
         </div>
       </div>

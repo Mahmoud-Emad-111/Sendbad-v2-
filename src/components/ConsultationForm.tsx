@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_BASE } from '../lib/api';
 import { X, Upload, MapPin, Phone, User, Home } from 'lucide-react';
 import { Button } from './Button';
 
@@ -18,16 +19,47 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
   });
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setApiError(null);
+      const fd = new FormData();
+      fd.append('fullName', formData.fullName || '');
+      fd.append('phone', formData.phone || '');
+      fd.append('address', formData.address || '');
+      fd.append('area', formData.area || '');
+      fd.append('style', formData.style || '');
+      if (formData.images && formData.images.length) {
+        formData.images.forEach((f) => fd.append('images[]', f));
+      }
+
+      const url = `${API_BASE}/consultations`;
+      console.log('[ConsultationForm] submitting to', url);
+      const res = await fetch(url, {
+        method: 'POST',
+        body: fd,
+      });
+      if (!res.ok) {
+        let text = await res.text();
+        try {
+          const json = JSON.parse(text || '{}');
+          text = json.message || JSON.stringify(json);
+        } catch (e) {}
+        setApiError(`Server returned ${res.status}: ${text}`);
+        console.error('[ConsultationForm] submit error', res.status, text);
+        return;
+      }
+      // success
       setStep('success');
-    }, 1500);
+    } catch (err: any) {
+      console.error('[ConsultationForm] submit exception', err);
+      setApiError(err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +83,7 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 flex items-end md:items-center justify-center consultation-modal" style={{ zIndex: 999999 }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -59,12 +91,12 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
       ></div>
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-white rounded-t-3xl md:rounded-3xl shadow-2xl animate-[slideInRight_0.3s_cubic-bezier(0.34,1.56,0.64,1)] max-h-[90vh] overflow-y-auto">
+      <div className="relative modal-dialog w-full max-w-md md:max-w-2xl bg-white rounded-t-lg md:rounded-3xl shadow-2xl animate-[slideInRight_0.3s_cubic-bezier(0.34,1.56,0.64,1)] max-h-[80vh] md:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] px-6 py-6 flex items-center justify-between rounded-t-3xl z-10 shadow-lg">
+        <div className="sticky top-0 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-600)] px-4 py-4 md:px-6 md:py-6 flex items-center justify-between rounded-t-2xl md:rounded-t-3xl z-10 shadow-lg">
           <div>
-            <h3 className="m-0 text-white text-2xl">احصل على استشارة مجانية</h3>
-            <p className="text-white/80 text-sm m-0 mt-1">نرد عليك خلال 24 ساعة</p>
+            <h3 className="m-0 text-white text-xl md:text-2xl">احصل على استشارة مجانية</h3>
+            <p className="text-white/80 text-[0.95rem] md:text-sm m-0 mt-1">نرد عليك خلال 24 ساعة</p>
           </div>
           <button
             onClick={onClose}
@@ -76,7 +108,7 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {step === 'form' ? (
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Full Name */}
@@ -85,14 +117,14 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                   الاسم الكامل <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 hidden md:block" />
                   <input
                     type="text"
                     id="fullName"
                     required
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                    className="w-full pr-10 pl-3 py-2 md:pr-11 md:pl-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                     placeholder="أدخل اسمك الكامل"
                   />
                 </div>
@@ -104,14 +136,14 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                   رقم الموبايل <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 hidden md:block" />
                   <input
                     type="tel"
                     id="phone"
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                    className="w-full pr-10 pl-3 py-2 md:pr-11 md:pl-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                     placeholder="05xxxxxxxx"
                     pattern="[0-9]{10,}"
                   />
@@ -125,14 +157,14 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                   عنوان السكن <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 hidden md:block" />
                   <input
                     type="text"
                     id="address"
                     required
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                    className="w-full pr-10 pl-3 py-2 md:pr-11 md:pl-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                     placeholder="المدينة، الحي"
                   />
                 </div>
@@ -149,7 +181,7 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                       key={range}
                       type="button"
                       onClick={() => setFormData({ ...formData, area: range })}
-                      className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all ${
+                      className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm md:text-base transition-all ${
                         formData.area === range
                           ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                           : 'border-gray-300 hover:border-[var(--color-primary)]'
@@ -167,12 +199,12 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                   النمط المفضل
                 </label>
                 <div className="relative">
-                  <Home className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Home className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 hidden md:block" />
                   <select
                     id="style"
                     value={formData.style}
                     onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                    className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all appearance-none bg-white"
+                    className="w-full pr-10 pl-3 py-2 md:pr-11 md:pl-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all appearance-none bg-white"
                   >
                     <option value="modern">عصري (Modern)</option>
                     <option value="classic">كلاسيكي (Classic)</option>
@@ -187,7 +219,7 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
                 <label className="block mb-2 text-[var(--color-neutral-dark)]">
                   رفع صور المطبخ (اختياري، حتى 4 صور)
                 </label>
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[var(--color-primary)] transition-colors bg-gray-50">
+                <label className="flex flex-col items-center justify-center w-full h-24 md:h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[var(--color-primary)] transition-colors bg-gray-50">
                   <Upload className="w-8 h-8 text-gray-400 mb-2" />
                   <span className="text-sm text-gray-600">اضغط لرفع الصور</span>
                   <input
@@ -206,15 +238,21 @@ export function ConsultationForm({ isOpen, onClose }: ConsultationFormProps) {
               </div>
 
               {/* Submit */}
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth
-                loading={loading}
-              >
-                أرسل الطلب
-              </Button>
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  loading={loading}
+                >
+                  أرسل الطلب
+                </Button>
+              </div>
+
+              {apiError && (
+                <div className="mt-2 p-3 bg-red-50 text-red-700 rounded text-sm">{apiError}</div>
+              )}
 
               <p className="text-center text-sm text-gray-500">
                 بإرسال الطلب، أنت توافق على سياسة الخصوصية

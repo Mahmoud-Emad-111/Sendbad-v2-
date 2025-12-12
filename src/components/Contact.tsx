@@ -16,7 +16,7 @@ export function Contact() {
           {/* Map */}
           <div className="rounded-[var(--radius-card)] overflow-hidden shadow-[var(--shadow-soft)]">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3624.9481657417145!2d46.6753!3d24.7136!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjTCsDQyJzQ5LjAiTiA0NsKwNDAnMzEuMSJF!5e0!3m2!1sen!2ssa!4v1234567890"
+              src="https://www.google.com/maps/d/embed?mid=1EFI4TSnIcKnIwLoCsuzvZSDMNwY5Bm4&ehbc=2E312F"
               width="100%"
               height="400"
               style={{ border: 0 }}
