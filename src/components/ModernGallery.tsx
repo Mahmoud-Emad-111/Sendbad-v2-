@@ -278,7 +278,9 @@ export function ModernGallery({ onRequestSimilar }: ModernGalleryProps) {
             </button>
 
             {/* Content */}
-            <div className="max-w-[95vw] sm:max-w-2xl md:max-w-3xl w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div 
+              style={{ maxWidth: '800px'}}
+            className="max-w-[95vw] sm:max-w-2xl md:max-w-3xl w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar">
               {/* Image */}
               <div className="relative aspect-[4/3] sm:aspect-[16/10] mb-3 sm:mb-4 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[45vh] sm:max-h-[70vh]">
                 <ImageWithFallback
